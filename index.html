@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groupie Tracker</title>
+    <script defer src="script.js"></script>
+</head>
+<body>
+    <h1>Groupie Tracker</h1>
+    <div id="artists"></div>
+    <script>
+        async function fetchArtists() {
+            const response = await fetch('/api/artists');
+            const artists = await response.json();
+            const container = document.getElementById('artists');
+            artists.forEach(artist => {
+                const artistDiv = document.createElement('div');
+                artistDiv.innerHTML = `<h2>${artist.name}</h2><img src="${artist.image}" alt="${artist.name}" style="width:100px;"><p>First Album: ${artist.firstAlbum}</p>`;
+                container.appendChild(artistDiv);
+            });
+        }
+        fetchArtists();
+    </script>
+</body>
+</html>
