@@ -2,19 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
+	"html/template"
 	"log"
 	"net/http"
-	"sync"
 )
-
-type APIUrls struct {
-	Artists   string `json:"artists"`
-	Locations string `json:"locations"`
-	Dates     string `json:"dates"`
-	Relation  string `json:"relation"`
-}
 
 type Artist struct {
 	ID           int      `json:"id"`
@@ -23,105 +14,52 @@ type Artist struct {
 	Members      []string `json:"members"`
 	CreationDate int      `json:"creationDate"`
 	FirstAlbum   string   `json:"firstAlbum"`
+	Locations    string   `json:"locations"`
+	ConcertDates string   `json:"concertDates"`
+	Relations    string   `json:"relations"`
 }
 
-type Location struct {
-	ID        int      `json:"id"`
-	Locations []string `json:"locations"`
-}
-
-type Date struct {
-	ID    int      `json:"id"`
-	Dates []string `json:"dates"`
-}
-
-type Relation struct {
-	ID         int `json:"id"`
-	ArtistID   int `json:"artistId"`
-	LocationID int `json:"locationId"`
-	DateID     int `json:"dateId"`
-}
-
-var (
-	artists   []Artist
-	locations []Location
-	dates     []Date
-	relations []Relation
-)
+var artists []Artist
 
 func main() {
-	http.HandleFunc("/", serveFiles)
-	http.HandleFunc("/api/artists", artistHandler)
-	http.HandleFunc("/api/locations", locationHandler)
-	http.HandleFunc("/api/dates", dateHandler)
-	http.HandleFunc("/api/relations", relationHandler)
+	// Load artists data from API
+	err := loadArtistsData()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	fmt.Println("Server listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	// Set up routes
+	http.HandleFunc("/", handleHome)
+	http.HandleFunc("/artists", handleArtists)
+
+	// Start the server
+	log.Println("Server started on http://localhost:5500")
+	log.Fatal(http.ListenAndServe(":5500", nil))
 }
 
-func fetchAPI(url string, target interface{}) error {
-	resp, err := http.Get(url)
+func loadArtistsData() error {
+	// Make a GET request to the API endpoint
+	resp, err := http.Get("https://groupietrackers.herokuapp.com/api/artists")
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	// Parse the JSON response into the artists slice
+	err = json.NewDecoder(resp.Body).Decode(&artists)
 	if err != nil {
 		return err
 	}
 
-	return json.Unmarshal(body, target)
+	return nil
 }
 
-func init() {
-	apis := APIUrls{
-		Artists:   "https://groupietrackers.herokuapp.com/api/artists",
-		Locations: "https://groupietrackers.herokuapp.com/api/locations",
-		Dates:     "https://groupietrackers.herokuapp.com/api/dates",
-		Relation:  "https://groupietrackers.herokuapp.com/api/relation",
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(4)
-
-	go func() {
-		defer wg.Done()
-		fetchAPI(apis.Artists, &artists)
-	}()
-	go func() {
-		defer wg.Done()
-		fetchAPI(apis.Locations, &locations)
-	}()
-	go func() {
-		defer wg.Done()
-		fetchAPI(apis.Dates, &dates)
-	}()
-	go func() {
-		defer wg.Done()
-		fetchAPI(apis.Relation, &relations)
-	}()
-
-	wg.Wait()
+func handleHome(w http.ResponseWriter, r *http.Request) {
+	tmpl := template.Must(template.ParseFiles("templates/home.html"))
+	tmpl.Execute(w, nil)
 }
 
-func serveFiles(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "index.html")
-}
-
-func artistHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(artists)
-}
-
-func locationHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(locations)
-}
-
-func dateHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(dates)
-}
-
-func relationHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(relations)
+func handleArtists(w http.ResponseWriter, r *http.Request) {
+	tmpl := template.Must(template.ParseFiles("templates/artists.html"))
+	tmpl.Execute(w, artists)
 }
