@@ -1,49 +1,56 @@
+<!-- templates/home.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Groupie Trackers</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Home | Groupie Trackers</title>
+    <style>
+        .slider {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .slider > div {
+            scroll-snap-align: start;
+            flex-shrink: 0;
+            width: 100%;
+            margin-right: 20px;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <nav>
+    <h1>Welcome to Groupie Trackers</h1>
+
+    <h2>Featured Artists</h2>
+    <div class="slider">
+        {{range .Artists}}
+        <div>
+            <h2>{{.Name}}</h2>
+            <img src="{{.Image}}" alt="{{.Name}}">
+            <p>Creation Date: {{.CreationDate}}</p>
+            <p>First Album: {{.FirstAlbum}}</p>
+            <p>Members:</p>
             <ul>
-                <li><a href="/">Home</a></li>
-                <li><a href="/artists">Artists</a></li>
+                {{range .Members}}
+                <li>{{.}}</li>
+                {{end}}
             </ul>
-        </nav>
-    </header>
-
-    <main>
-        <section class="hero">
-            <h1>Welcome to Groupie Trackers</h1>
-            <p>Explore information about your favorite artists.</p>
-            <a href="/artists" class="cta-button">View Artists</a>
-        </section>
-
-        <section class="features">
-            <div class="feature">
-                <img src="feature1.png" alt="Feature 1">
-                <h2>Artist Information</h2>
-                <p>Get detailed information about artists, including their history, albums, and more.</p>
-            </div>
-            <div class="feature">
-                <img src="feature2.png" alt="Feature 2">
-                <h2>Concert Locations</h2>
-                <p>Discover the locations where your favorite artists have performed or will be performing.</p>
-            </div>
-            <div class="feature">
-                <img src="feature3.png" alt="Feature 3">
-                <h2>Upcoming Events</h2>
-                <p>Stay up to date with the latest concerts and events featuring your favorite artists.</p>
-            </div>
-        </section>
-    </main>
-
-    <footer>
-        <p>&copy; 2023 Groupie Trackers. All rights reserved.</p>
-    </footer>
+            <p>Locations:</p>
+            <ul>
+                {{range index $.Locations .ID}}
+                <li>{{.}}</li>
+                {{end}}
+            </ul>
+            <p>Concert Dates:</p>
+            <ul>
+                {{range index $.Dates .ID}}
+                <li>{{.}}</li>
+                {{end}}
+            </ul>
+        </div>
+        {{end}}
+    </div>
 </body>
 </html>

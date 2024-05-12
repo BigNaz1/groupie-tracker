@@ -14,16 +14,37 @@ type Artist struct {
 	Members      []string `json:"members"`
 	CreationDate int      `json:"creationDate"`
 	FirstAlbum   string   `json:"firstAlbum"`
-	Locations    string   `json:"locations"`
-	ConcertDates string   `json:"concertDates"`
-	Relations    string   `json:"relations"`
+}
+
+type Location struct {
+	Index []struct {
+		ID        int      `json:"id"`
+		Locations []string `json:"locations"`
+	} `json:"index"`
+}
+
+type Date struct {
+	Index []struct {
+		ID    int      `json:"id"`
+		Dates []string `json:"dates"`
+	} `json:"index"`
+}
+
+type Relation struct {
+	Index []struct {
+		ID             int                 `json:"id"`
+		DatesLocations map[string][]string `json:"datesLocations"`
+	} `json:"index"`
 }
 
 var artists []Artist
+var locations Location
+var dates Date
+var relations Relation
 
 func main() {
-	// Load artists data from API
-	err := loadArtistsData()
+	// Load data from APIs
+	err := loadData()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -37,16 +58,27 @@ func main() {
 	log.Fatal(http.ListenAndServe(":5500", nil))
 }
 
-func loadArtistsData() error {
-	// Make a GET request to the API endpoint
-	resp, err := http.Get("https://groupietrackers.herokuapp.com/api/artists")
+func loadData() error {
+	// Load artists data
+	err := loadFromAPI("https://groupietrackers.herokuapp.com/api/artists", &artists)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
-	// Parse the JSON response into the artists slice
-	err = json.NewDecoder(resp.Body).Decode(&artists)
+	// Load locations data
+	err = loadFromAPI("https://groupietrackers.herokuapp.com/api/locations", &locations)
+	if err != nil {
+		return err
+	}
+
+	// Load dates data
+	err = loadFromAPI("https://groupietrackers.herokuapp.com/api/dates", &dates)
+	if err != nil {
+		return err
+	}
+
+	// Load relations data
+	err = loadFromAPI("https://groupietrackers.herokuapp.com/api/relation", &relations)
 	if err != nil {
 		return err
 	}
@@ -54,12 +86,39 @@ func loadArtistsData() error {
 	return nil
 }
 
-func handleHome(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("templates/home.html"))
-	tmpl.Execute(w, nil)
-}
+func loadFromAPI(url string, data interface{}) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-func handleArtists(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("templates/artists.html"))
-	tmpl.Execute(w, artists)
+	err = json.NewDecoder(resp.Body).Decode(data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func handleHome(w http.ResponseWriter, r *http.Request) {
+    tmpl := template.Must(template.ParseFiles("templates/home.html"))
+    data := struct {
+        Artists   []Artist
+        Locations map[int][]string
+        Dates     map[int][]string
+    }{
+        Artists: artists,
+    }
+
+    data.Locations = make(map[int][]string)
+    for _, location := range locations.Index {
+        data.Locations[location.ID] = location.Locations
+    }
+
+    data.Dates = make(map[int][]string)
+    for _, date := range dates.Index {
+        data.Dates[date.ID] = date.Dates
+    }
+
+    tmpl.Execute(w, data)
 }
