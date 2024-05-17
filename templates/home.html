@@ -1,55 +1,20 @@
-<!-- templates/home.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Home | Groupie Trackers</title>
-    <style>
-        .slider {
-            display: flex;
-            overflow-x: auto;
-            scroll-snap-type: x mandatory;
-            scroll-behavior: smooth;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .slider > div {
-            scroll-snap-align: start;
-            flex-shrink: 0;
-            width: 100%;
-            margin-right: 20px;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artists</title>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <h1>Welcome to Groupie Trackers</h1>
-
-    <h2>Featured Artists</h2>
-    <div class="slider">
+    <h1>Artists</h1>
+    
+    <div class="artist-grid">
         {{range .Artists}}
-        <div>
-            <h2>{{.Name}}</h2>
+        <a href="/artist/{{.ID}}" class="artist-card">
             <img src="{{.Image}}" alt="{{.Name}}">
-            <p>Creation Date: {{.CreationDate}}</p>
-            <p>First Album: {{.FirstAlbum}}</p>
-            <p>Members:</p>
-            <ul>
-                {{range .Members}}
-                <li>{{.}}</li>
-                {{end}}
-            </ul>
-            <p>Locations:</p>
-            <ul>
-                {{range index $.Locations .ID}}
-                <li>{{.}}</li>
-                {{end}}
-            </ul>
-            <p>Concert Dates:</p>
-            <ul>
-                {{range index $.Dates .ID}}
-                <li>{{.}}</li>
-                {{end}}
-            </ul>
-        </div>
+            <h2>{{.Name}}</h2>
+        </a>
         {{end}}
     </div>
 </body>

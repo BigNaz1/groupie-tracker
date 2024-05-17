@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 type Artist struct {
@@ -16,20 +17,6 @@ type Artist struct {
 	FirstAlbum   string   `json:"firstAlbum"`
 }
 
-type Location struct {
-	Index []struct {
-		ID        int      `json:"id"`
-		Locations []string `json:"locations"`
-	} `json:"index"`
-}
-
-type Date struct {
-	Index []struct {
-		ID    int      `json:"id"`
-		Dates []string `json:"dates"`
-	} `json:"index"`
-}
-
 type Relation struct {
 	Index []struct {
 		ID             int                 `json:"id"`
@@ -38,8 +25,6 @@ type Relation struct {
 }
 
 var artists []Artist
-var locations Location
-var dates Date
 var relations Relation
 
 func main() {
@@ -49,30 +34,40 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Create a new ServeMux
+	mux := http.NewServeMux()
+
 	// Set up routes
-	http.HandleFunc("/", handleHome)
-	http.HandleFunc("/artists", handleArtists)
+	mux.HandleFunc("/", handleRoot)
+	mux.HandleFunc("/artist/", handleArtist)
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	// Start the server
 	log.Println("Server started on http://localhost:5500")
-	log.Fatal(http.ListenAndServe(":5500", nil))
+	log.Fatal(http.ListenAndServe(":5500", mux))
+}
+
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		notFoundHandler(w)
+		return
+	}
+	handleHome(w)
+}
+
+func notFoundHandler(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNotFound)
+	tmpl, err := template.ParseFiles("templates/404.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	tmpl.Execute(w, nil)
 }
 
 func loadData() error {
 	// Load artists data
 	err := loadFromAPI("https://groupietrackers.herokuapp.com/api/artists", &artists)
-	if err != nil {
-		return err
-	}
-
-	// Load locations data
-	err = loadFromAPI("https://groupietrackers.herokuapp.com/api/locations", &locations)
-	if err != nil {
-		return err
-	}
-
-	// Load dates data
-	err = loadFromAPI("https://groupietrackers.herokuapp.com/api/dates", &dates)
 	if err != nil {
 		return err
 	}
@@ -100,25 +95,87 @@ func loadFromAPI(url string, data interface{}) error {
 
 	return nil
 }
-func handleHome(w http.ResponseWriter, r *http.Request) {
-    tmpl := template.Must(template.ParseFiles("templates/home.html"))
-    data := struct {
-        Artists   []Artist
-        Locations map[int][]string
-        Dates     map[int][]string
-    }{
-        Artists: artists,
-    }
 
-    data.Locations = make(map[int][]string)
-    for _, location := range locations.Index {
-        data.Locations[location.ID] = location.Locations
-    }
+func badRequestHandler(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusBadRequest)
+	tmpl, err := template.ParseFiles("templates/400.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	tmpl.Execute(w, nil)
+}
 
-    data.Dates = make(map[int][]string)
-    for _, date := range dates.Index {
-        data.Dates[date.ID] = date.Dates
-    }
+func internalServerErrorHandler(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusInternalServerError)
+	tmpl, err := template.ParseFiles("templates/500.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	tmpl.Execute(w, nil)
+}
 
-    tmpl.Execute(w, data)
+func handleHome(w http.ResponseWriter) {
+	tmpl := template.Must(template.ParseFiles("templates/home.html"))
+	data := struct {
+		Artists []Artist
+	}{
+		Artists: artists,
+	}
+
+	tmpl.Execute(w, data)
+}
+
+func handleArtist(w http.ResponseWriter, r *http.Request) {
+	artistID := r.URL.Path[len("/artist/"):]
+	id, err := strconv.Atoi(artistID)
+	if err != nil {
+		badRequestHandler(w)
+		return
+	}
+
+	var artist Artist
+	for _, a := range artists {
+		if a.ID == id {
+			artist = a
+			break
+		}
+	}
+
+	if artist.ID == 0 {
+		notFoundHandler(w)
+		return
+	}
+
+	// Simulate an internal server error for a specific artist ID
+	if artist.ID == 123 {
+		internalServerErrorHandler(w)
+		return
+	}
+
+	var relation struct {
+		DatesLocations map[string][]string `json:"datesLocations"`
+	}
+	for _, r := range relations.Index {
+		if r.ID == id {
+			relation.DatesLocations = r.DatesLocations
+			break
+		}
+	}
+
+	data := struct {
+		Artist         Artist
+		DatesLocations map[string][]string
+	}{
+		Artist:         artist,
+		DatesLocations: relation.DatesLocations,
+	}
+
+	tmpl := template.Must(template.ParseFiles("templates/artist.html"))
+	err = tmpl.Execute(w, data)
+	if err != nil {
+		internalServerErrorHandler(w)
+		return
+	}
 }
